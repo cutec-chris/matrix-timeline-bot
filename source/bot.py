@@ -1,5 +1,5 @@
 from init import *
-import functools,re
+import functools,re,urllib.request,os,mimetypes,aiofiles,urllib.parse,os.path
 servers = []
 loop = None
 lastsend = None
@@ -35,7 +35,21 @@ async def tell(room, message):
         for server in servers:
             if server['room'] == room.room_id:
                 pass
-async def post_html_entry(room,html_body,sender):
+async def post_html_entry(room,html_body,sender,files=[]):
+    furls = []
+    for url in files:
+        file = '/tmp/'+os.path.basename((urllib.parse.urlparse(url).path))
+        urllib.request.urlretrieve(url, file)
+        mimetype = mimetypes.guess_type(file)
+        async with aiofiles.open(file, 'rb') as tmpf:
+            resp, maybe_keys = await bot.api.async_client.upload(tmpf,content_type=mimetype[0])
+            print(resp,maybe_keys)
+        if url in html_body:
+            html_body.replace(url,resp.content_uri)
+        else:
+            html_body += '<img href="%s"></img>' % resp.content_uri
+        #info = { 'h': img.height, 'w': img.width, 'mimetype': mimetype}
+        #return resp.get('content_uri'), info
     await bot.api.async_client.room_send(room_id=room,
                                           message_type="m.room.message",
                                           content={
@@ -76,11 +90,14 @@ async def check_server(server):
                                 sender += ' RT from <img src=\"%s\"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'])
                             if toot['in_reply_to_id']:
                                 events = await get_room_events(bot.api.async_client,server['room'])
-                            await post_html_entry(server['room'],toot['content'],sender)
+                            files = []
+                            for media in toot['media_attachments']:
+                                files.append(media['url'])
+                            await post_html_entry(server['room'],toot['content'],sender,files)
                             LastId = toot['id']
                             server['LastId'] = LastId
-                            update_server_var()
-                            await save_servers()
+                            #update_server_var()
+                            #await save_servers()
                         await asyncio.sleep(60)
         except BaseException as e:
             if str(e) != LastError:

@@ -2,3 +2,4 @@ simplematrixbotlib
 pyyaml
 Mastodon.py
 bs4
+Pillow
