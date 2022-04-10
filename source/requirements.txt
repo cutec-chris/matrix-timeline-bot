@@ -1,4 +1,4 @@
 simplematrixbotlib
 pyyaml
 Mastodon.py
-markdownify
+bs4
