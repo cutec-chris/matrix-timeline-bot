@@ -78,9 +78,9 @@ async def check_server(server):
                                 events = await get_room_events(bot.api.async_client,server['room'])
                             await post_html_entry(server['room'],toot['content'],sender)
                             LastId = toot['id']
-                            #server['LastId'] = LastId
-                            #update_server_var()
-                            #await save_servers()
+                            server['LastId'] = LastId
+                            update_server_var()
+                            await save_servers()
                         await asyncio.sleep(60)
         except BaseException as e:
             if str(e) != LastError:
