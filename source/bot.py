@@ -1,5 +1,7 @@
+from random import normalvariate
 from init import *
-import functools,re,urllib.request,os,mimetypes,aiofiles,urllib.parse,os.path
+import functools,re,urllib.request,os,mimetypes,aiofiles,urllib.parse,os.path,bs4
+from types import MappingProxyType
 servers = []
 loop = None
 lastsend = None
@@ -13,12 +15,12 @@ async def tell(room, message):
     match = botlib.MessageMatch(room, message, bot, prefix)
     if match.is_not_from_this_bot() and match.prefix()\
     and match.command("follow"):
-        server = {
+        server = MappingProxyType({
             'room': room.room_id,
             'feed': match.args()[1],
             'username': None,
             'password': None
-        }
+        })
         if len(match.args())>3:
             server['password'] = match.args()[3]
         if len(match.args())>2:
@@ -35,7 +37,28 @@ async def tell(room, message):
         for server in servers:
             if server['room'] == room.room_id:
                 pass
-async def post_html_entry(room,html_body,sender,files=[]):
+async def post_html_entry(server,html_body,sender,files=[]):
+    #search for avatar 
+    bs = bs4.BeautifulSoup(sender)
+    for img in bs.findAll('img'):
+        if not 'avatars' in server:
+            server['avatars'] = []
+        found = False
+        for avatar in server['avatars']:
+            if avatar['src'] == img['src']:
+                found = True
+                img['src'] = avatar['dest']
+        if not found: #and upload it if not found
+            url = img['src']
+            file = '/tmp/'+os.path.basename((urllib.parse.urlparse(url).path))
+            urllib.request.urlretrieve(url, file)
+            mimetype = mimetypes.guess_type(file)
+            async with aiofiles.open(file, 'rb') as tmpf:
+                resp, maybe_keys = await bot.api.async_client.upload(tmpf,content_type=mimetype[0])
+            navatar = {'src': img['src'],'dest': resp.content_uri}
+            server['avatars'].append(navatar)
+            img['src'] = resp.content_uri
+    sender = str(bs)
     furls = []
     for url in files:
         file = '/tmp/'+os.path.basename((urllib.parse.urlparse(url).path))
@@ -43,14 +66,13 @@ async def post_html_entry(room,html_body,sender,files=[]):
         mimetype = mimetypes.guess_type(file)
         async with aiofiles.open(file, 'rb') as tmpf:
             resp, maybe_keys = await bot.api.async_client.upload(tmpf,content_type=mimetype[0])
-            print(resp,maybe_keys)
         if url in html_body:
             html_body.replace(url,resp.content_uri)
         else:
-            html_body += '<img href="%s"></img>' % resp.content_uri
+            html_body += '<img src=\"%s\" alt="%s"></img>' % (resp.content_uri,os.path.basename((urllib.parse.urlparse(url).path)))
         #info = { 'h': img.height, 'w': img.width, 'mimetype': mimetype}
         #return resp.get('content_uri'), info
-    await bot.api.async_client.room_send(room_id=room,
+    await bot.api.async_client.room_send(room_id=server['room'],
                                           message_type="m.room.message",
                                           content={
                                               "msgtype": "m.text",#or m.notice seems to be shown more transparent
@@ -59,11 +81,6 @@ async def post_html_entry(room,html_body,sender,files=[]):
                                               "formatted_body": sender+'<br>'+html_body})
 async def check_server(server):
     global lastsend,servers
-    def update_server_var():
-        for server_r in servers:
-            if server_r['room'] == server['room']\
-            and server_r['feed'] == server['feed']:
-                server_r = server
     LastError = None
     if 'LastId' in server:
         LastId = server['LastId']
@@ -84,20 +101,19 @@ async def check_server(server):
                     while True:
                         tl = Mastodon.timeline(min_id=LastId)
                         for toot in reversed(tl):
-                            sender = '<img src=\"%s\"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'])
+                            sender = '<img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'])
                             if toot['reblog']:
                                 toot = toot['reblog']
-                                sender += ' RT from <img src=\"%s\"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'])
+                                sender += ' RT from <img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'])
                             if toot['in_reply_to_id']:
                                 events = await get_room_events(bot.api.async_client,server['room'])
                             files = []
                             for media in toot['media_attachments']:
                                 files.append(media['url'])
-                            await post_html_entry(server['room'],toot['content'],sender,files)
+                            await post_html_entry(server,toot['content'],sender,files)
                             LastId = toot['id']
                             server['LastId'] = LastId
-                            #update_server_var()
-                            #await save_servers()
+                            await save_servers()
                         await asyncio.sleep(60)
         except BaseException as e:
             if str(e) != LastError:
@@ -111,6 +127,8 @@ async def startup(room):
     try:
         with open('data.json', 'r') as f:
             servers = json.load(f)
+            for server in servers:
+                server = MappingProxyType(server)
     except: pass
     for server in servers:
         if server['room'] == room:
