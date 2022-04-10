@@ -67,19 +67,20 @@ async def check_server(server):
                 except BaseException as e:
                     Mastodon = None #no mastodon instance ?
                 if Mastodon:
-                    #events = await get_room_events(bot.api.async_client,server['room'])
                     while True:
                         tl = Mastodon.timeline(min_id=LastId)
                         for toot in reversed(tl):
-                            sender = '<img src=\"%s\"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'])
+                            sender = '<img src=\"%s\"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'])
                             if toot['reblog']:
-                                sender = toot['account']
                                 toot = toot['reblog']
+                                sender += ' RT from <img src=\"%s\"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'])
+                            if toot['in_reply_to_id']:
+                                events = await get_room_events(bot.api.async_client,server['room'])
                             await post_html_entry(server['room'],toot['content'],sender)
                             LastId = toot['id']
-                            server['LastId'] = LastId
-                            update_server_var()
-                            await save_servers()
+                            #server['LastId'] = LastId
+                            #update_server_var()
+                            #await save_servers()
                         await asyncio.sleep(60)
         except BaseException as e:
             if str(e) != LastError:
