@@ -1,4 +1,5 @@
 from init import *
+import functools,markdownify
 servers = []
 loop = None
 lastsend = None
@@ -18,6 +19,10 @@ async def tell(room, message):
             server['password'] = match.args()[3]
         if len(match.args())>2:
             server['username'] = match.args()[2]
+        if len(match.args())>4:
+            server['apikey'] = match.args()[4]
+        if len(match.args())>5:
+            server['clientid'] = match.args()[5]
         servers.append(server)
         loop.create_task(check_server(server))
         with open('data.json', 'w') as f:
@@ -25,9 +30,16 @@ async def tell(room, message):
         await bot.api.send_text_message(room.room_id, 'ok')
     elif match.is_not_from_this_bot():
         for server in servers:
-            if server['room'] == room.room_id and '_client' in server:
-                break
-        if server['room'] != room.room_id: return
+            if server['room'] == room.room_id:
+                pass
+async def post_entry(room,body,html_body,sender):
+    await bot.api.async_client.room_send(room_id=room,
+                                          message_type="m.room.message",
+                                          content={
+                                              "msgtype": "m.text",
+                                              "body": body,
+                                              "format": "org.matrix.custom.html",
+                                              "formatted_body": sender+'<br>'+html_body})
 async def check_server(server):
     global lastsend,servers
     def update_server_var():
@@ -35,10 +47,35 @@ async def check_server(server):
             if server_r['room'] == server['room']\
             and server_r['url'] == server['url']:
                 server_r = server
+    LastError = None
+    LastId = None
     while True:
         try:
+            if 'apikey' in server: #at time we only support mastodon with api key
+                try:
+                    import mastodon
+                    Mastodon = mastodon.Mastodon(
+                        access_token=server['apikey'],
+                        api_base_url = server['feed']
+                    )
+                except BaseException as e:
+                    Mastodon = None #no mastodon instance ?
+                if Mastodon:
+                    #events = await get_room_events(bot.api.async_client,server['room'])
+                    tl = Mastodon.timeline(min_id=LastId)
+                    if len(tl)>0:
+                        LastId =  tl[0]['id']
+                    for toot in tl:
+                        sender = '<img src=\"%s\"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'])
+                        if toot['reblog']:
+                            sender = toot['account']
+                            toot = toot['reblog']
+                        await post_entry(server['room'],toot['card']['description'],toot['content'],sender)
+                        break
         except BaseException as e:
-            pass
+            if str(e) != LastError:
+                LastError = str(e)
+                await bot.api.send_text_message(server['room'],str(e))
         await asyncio.sleep(5)
 @bot.listener.on_startup
 async def startup(room):
@@ -58,8 +95,10 @@ async def bot_help(room, message):
         prefix: {prefix}
         commands:
             follow:
-                command: follow mastodon/twitter/feed [username] [password]
+                command: follow feed_url [username] [password] [api key]
                 description: follow feed or timeline in this room
+                mastodon needs all fields filled
+                rss/atom feeds only the url (and username and apsswort when auth is needed)
             help:
                 command: help, ?, h
                 description: display help command
