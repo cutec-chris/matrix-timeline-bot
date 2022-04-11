@@ -102,6 +102,7 @@ async def check_server(server):
                         tl = Mastodon.timeline(min_id=LastId)
                         for toot in reversed(tl):
                             sender = '<img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'])
+                            LastId = toot['id']
                             if toot['reblog']:
                                 toot = toot['reblog']
                                 sender += ' RT from <img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'])
@@ -111,7 +112,6 @@ async def check_server(server):
                             for media in toot['media_attachments']:
                                 files.append(media['url'])
                             await post_html_entry(server,toot['content'],sender,files)
-                            LastId = toot['id']
                             server['LastId'] = LastId
                             await save_servers()
                         await asyncio.sleep(60)
