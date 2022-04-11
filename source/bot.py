@@ -39,7 +39,7 @@ async def tell(room, message):
                 pass
 async def post_html_entry(server,html_body,sender,files=[]):
     #search for avatar 
-    bs = bs4.BeautifulSoup(sender,features="html5lib")
+    bs = bs4.BeautifulSoup(sender,features="lxml")
     for img in bs.findAll('img'):
         if not 'avatars' in server:
             server['avatars'] = []
