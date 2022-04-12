@@ -136,8 +136,9 @@ async def check_server(server):
                             if toot['in_reply_to_id']:
                                 events = await get_room_events(bot.api.async_client,server['room'])
                                 for event in events:
-                                    if str(extract_id(event.formatted_body)) == str(toot['in_reply_to_id']):
-                                        replyto = event
+                                    if hasattr(event,'formatted_body'):
+                                        if str(extract_id(event.formatted_body)) == str(toot['in_reply_to_id']):
+                                            replyto = event
                             files = []
                             for media in toot['media_attachments']:
                                 files.append(media['url'])
