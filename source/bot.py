@@ -47,6 +47,20 @@ def extract_id(post):
         except:
             res = None
     return res
+@bot.listener.on_reaction_event
+async def react(room, message, key):
+    msg_id = message.source['content']['m.relates_to']['event_id']
+    events = await get_room_events(bot.api.async_client,room.room_id,1)
+    toot_id = None
+    for event in events:
+        if event.event_id == msg_id:
+            if hasattr(event,'formatted_body'):
+                toot_id = extract_id(event.formatted_body)
+            break
+    if toot_id:
+        if key == '👍️'\
+        or key == '⭐️':
+            server['_client'].status_favourite(toot_id)
 async def post_html_entry(server,html_body,sender,files=[],replyto=None):
     global servers
     #search for avatar 
@@ -125,6 +139,7 @@ async def check_server(server):
                             if nLastId:
                                 LastId = nLastId
                                 break
+                    server['_client'] = Mastodon
                     while True:
                         tl = Mastodon.timeline(min_id=LastId)
                         for toot in reversed(tl):

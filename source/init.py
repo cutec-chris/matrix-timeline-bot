@@ -27,9 +27,9 @@ async def fetch_room_events(
         events.extend(event for event in response.chunk if is_valid_event(event))
         start_token = response.end
     return events
-async def get_room_events(client, room):
+async def get_room_events(client, room, limit = 1):
     sync_resp = await client.sync(
-        full_state=True, sync_filter={"room": {"timeline": {"limit": 1}}}
+        full_state=limit==1, sync_filter={"room": {"timeline": {"limit": limit}}}
     )
     start_token = sync_resp.rooms.join[room].timeline.prev_batch
     # Generally, it should only be necessary to fetch back events but,
