@@ -120,7 +120,8 @@ async def check_server(server):
                 if Mastodon:
                     events = await get_room_events(bot.api.async_client,server['room'])
                     for event in events:
-                        nLastId = extract_id(event.formatted_body)
+                        if hasattr(event,'formatted_body'):
+                            nLastId = extract_id(event.formatted_body)
                         if nLastId:
                             LastId = nLastId
                             break
