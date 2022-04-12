@@ -48,16 +48,18 @@ def extract_id(post):
             res = None
     return res
 async def post_html_entry(server,html_body,sender,files=[]):
+    global servers
     #search for avatar 
     bs = bs4.BeautifulSoup(sender,features="lxml")
     for img in bs.findAll('img'):
         if not 'avatars' in server:
             server['avatars'] = []
         found = False
-        for avatar in server['avatars']:
-            if avatar['src'] == img['src']:
-                found = True
-                img['src'] = avatar['dest']
+        for servera in servers:
+            for avatar in servera['avatars']:
+                if avatar['src'] == img['src']:
+                    found = True
+                    img['src'] = avatar['dest']
         if not found: #and upload it if not found
             url = img['src']
             file = '/tmp/'+os.path.basename((urllib.parse.urlparse(url).path))
@@ -125,7 +127,7 @@ async def check_server(server):
                             if toot['in_reply_to_id']:
                                 events = await get_room_events(bot.api.async_client,server['room'])
                                 for event in events:
-                                    if str(extract_id(event.formatted_body)) == toot['in_reply_to_id']:
+                                    if str(extract_id(event.formatted_body)) == str(toot['in_reply_to_id']):
                                         pass
                             files = []
                             for media in toot['media_attachments']:
