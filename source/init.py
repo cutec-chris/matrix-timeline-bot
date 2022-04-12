@@ -28,7 +28,6 @@ async def fetch_room_events(
         start_token = response.end
     return events
 async def get_room_events(client, room):
-    print(f"Fetching {room} room messages and writing to disk...")
     sync_resp = await client.sync(
         full_state=True, sync_filter={"room": {"timeline": {"limit": 1}}}
     )

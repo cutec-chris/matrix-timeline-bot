@@ -37,6 +37,16 @@ async def tell(room, message):
         for server in servers:
             if server['room'] == room.room_id:
                 pass
+def extract_id(post):
+    res = None
+    if 'alt="tootid@' in str(post):
+        res = post[post.find('alt="tootid@')+12:]
+        res = res[:res.find('"')]
+        try:
+            res = int(res)
+        except:
+            res = None
+    return res
 async def post_html_entry(server,html_body,sender,files=[]):
     #search for avatar 
     bs = bs4.BeautifulSoup(sender,features="lxml")
@@ -98,22 +108,31 @@ async def check_server(server):
                 except BaseException as e:
                     Mastodon = None #no mastodon instance ?
                 if Mastodon:
+                    events = await get_room_events(bot.api.async_client,server['room'])
+                    for event in events:
+                        nLastId = extract_id(event.formatted_body)
+                        if nLastId:
+                            LastId = nLastId
+                            break
                     while True:
                         tl = Mastodon.timeline(min_id=LastId)
                         for toot in reversed(tl):
-                            sender = '<img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'])
+                            sender = '<img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" alt="tootid@%s" style="display: none">🌐</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'],toot['id'])
                             LastId = toot['id']
                             if toot['reblog']:
                                 toot = toot['reblog']
-                                sender += ' RT from <img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'])
+                                sender += ' RT from <img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" alt="tootid@%s" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'],toot['id'])
                             if toot['in_reply_to_id']:
                                 events = await get_room_events(bot.api.async_client,server['room'])
+                                for event in events:
+                                    if str(extract_id(event.formatted_body)) == toot['in_reply_to_id']:
+                                        pass
                             files = []
                             for media in toot['media_attachments']:
                                 files.append(media['url'])
                             await post_html_entry(server,toot['content'],sender,files)
                             server['LastId'] = LastId
-                            await save_servers()
+                            #await save_servers()
                         await asyncio.sleep(60)
         except BaseException as e:
             if str(e) != LastError:
