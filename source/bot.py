@@ -122,9 +122,9 @@ async def check_server(server):
                     for event in events:
                         if hasattr(event,'formatted_body'):
                             nLastId = extract_id(event.formatted_body)
-                        if nLastId:
-                            LastId = nLastId
-                            break
+                            if nLastId:
+                                LastId = nLastId
+                                break
                     while True:
                         tl = Mastodon.timeline(min_id=LastId)
                         for toot in reversed(tl):
