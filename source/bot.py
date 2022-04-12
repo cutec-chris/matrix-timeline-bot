@@ -47,7 +47,7 @@ def extract_id(post):
         except:
             res = None
     return res
-async def post_html_entry(server,html_body,sender,files=[]):
+async def post_html_entry(server,html_body,sender,files=[],replyto=None):
     global servers
     #search for avatar 
     bs = bs4.BeautifulSoup(sender,features="lxml")
@@ -84,13 +84,21 @@ async def post_html_entry(server,html_body,sender,files=[]):
             html_body += '<img src=\"%s\" alt="%s"></img>' % (resp.content_uri,os.path.basename((urllib.parse.urlparse(url).path)))
         #info = { 'h': img.height, 'w': img.width, 'mimetype': mimetype}
         #return resp.get('content_uri'), info
+    mcontent={
+        "msgtype": "m.text",#or m.notice seems to be shown more transparent
+        "body": re.sub('<[^<]+?>', '', html_body),
+        "format": "org.matrix.custom.html",
+        "formatted_body": sender+'<br>'+html_body
+        }
+    if replyto:
+        mcontent['m.relates_to'] = {
+            "m.in_reply_to": {
+                "event_id": replyto.event_id
+            }
+        }
     await bot.api.async_client.room_send(room_id=server['room'],
                                           message_type="m.room.message",
-                                          content={
-                                              "msgtype": "m.text",#or m.notice seems to be shown more transparent
-                                              "body": re.sub('<[^<]+?>', '', html_body),
-                                              "format": "org.matrix.custom.html",
-                                              "formatted_body": sender+'<br>'+html_body})
+                                          content=mcontent)
 async def check_server(server):
     global lastsend,servers
     LastError = None
@@ -124,15 +132,16 @@ async def check_server(server):
                             if toot['reblog']:
                                 toot = toot['reblog']
                                 sender += ' RT from <img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" alt="tootid@%s" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'],toot['id'])
+                            replyto = None
                             if toot['in_reply_to_id']:
                                 events = await get_room_events(bot.api.async_client,server['room'])
                                 for event in events:
                                     if str(extract_id(event.formatted_body)) == str(toot['in_reply_to_id']):
-                                        pass
+                                        replyto = event
                             files = []
                             for media in toot['media_attachments']:
                                 files.append(media['url'])
-                            await post_html_entry(server,toot['content'],sender,files)
+                            await post_html_entry(server,toot['content'],sender,files,replyto=replyto)
                             server['LastId'] = LastId
                             #await save_servers()
                         await asyncio.sleep(60)
