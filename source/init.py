@@ -16,11 +16,12 @@ async def fetch_room_events(
     start_token: str,
     room,
     direction,
+    limit
 ) -> list:
     events = []
     while True:
         response = await client.room_messages(
-            room.room_id, start_token, limit=1000, direction=direction
+            room.room_id, start_token, limit=limit, direction=direction
         )
         if len(response.chunk) == 0:
             break
@@ -29,11 +30,11 @@ async def fetch_room_events(
     return events
 async def get_room_events(client, room, limit = 1):
     sync_resp = await client.sync(
-        full_state=limit==1, sync_filter={"room": {"timeline": {"limit": limit}}}
+        full_state=True, sync_filter={"room": {"timeline": {"limit": limit}}}
     )
     start_token = sync_resp.rooms.join[room].timeline.prev_batch
     # Generally, it should only be necessary to fetch back events but,
     # sometimes depending on the sync, front events need to be fetched
     # as well.
-    events = await fetch_room_events(client,start_token,bot.api.async_client.rooms[room],nio.MessageDirection.back)
+    events = await fetch_room_events(client,start_token,bot.api.async_client.rooms[room],nio.MessageDirection.back,limit)
     return events

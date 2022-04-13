@@ -1,4 +1,3 @@
-from random import normalvariate
 from init import *
 import functools,re,urllib.request,os,mimetypes,aiofiles,urllib.parse,os.path,bs4
 from types import MappingProxyType
@@ -50,7 +49,7 @@ def extract_id(post):
 @bot.listener.on_reaction_event
 async def react(room, message, key):
     msg_id = message.source['content']['m.relates_to']['event_id']
-    events = await get_room_events(bot.api.async_client,room.room_id,1)
+    events = await get_room_events(bot.api.async_client,room.room_id,50)
     toot_id = None
     for event in events:
         if event.event_id == msg_id:
