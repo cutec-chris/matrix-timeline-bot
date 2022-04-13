@@ -209,7 +209,8 @@ async def check_server(server):
                             elif entry.get('summary_detail'):
                                 content = entry.summary_detail['value']
                             await post_html_entry(server,content,sender,[])
-                    LastId = fetched['etag']
+                    if 'etag' in fetched:
+                        LastId = fetched['etag']
                     server['LastId'] = LastId
                     await save_servers()
                     asyncio.sleep(60)
