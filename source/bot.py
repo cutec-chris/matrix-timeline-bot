@@ -5,15 +5,30 @@ servers = []
 loop = None
 lastsend = None
 from collections.abc import MutableMapping 
-class DictClass(MutableMapping):
-    __slots__ = '_mydict'
-    def __init__(self):
-        self._mydict = {}
+class Server(object):
+    def __init__(self,room,**kwargs) -> None:
+        if isinstance(room, dict):
+            self.__dict__.update(room)
+        else:
+            self.room = room
+            self.__dict__.update(kwargs)
+    def __getitem__(self, key):
+        return self.__dict__[key]
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+    def __delitem__(self, key):
+        del self.__dict__[key]
+    def __contains__(self, key):
+        return key in self.__dict__
+    def __len__(self):
+        return len(self.__dict__)
+    def __repr__(self):
+        return repr(self.__dict__)
 async def save_servers():
     global servers
     sservers = []
     for server in servers:
-        sservers.append(server | {})
+        sservers.append(server.__dict__)
     with open('data.json', 'w') as f:
         json.dump(sservers,f, skipkeys=True)
 @bot.listener.on_message_event
@@ -22,7 +37,7 @@ async def tell(room, message):
     match = botlib.MessageMatch(room, message, bot, prefix)
     if match.is_not_from_this_bot() and match.prefix()\
     and match.command("follow"):
-        server = DictClass({
+        server = Server({
             'room': room.room_id,
             'feed': match.args()[1],
             'username': None,
@@ -76,10 +91,10 @@ async def post_html_entry(server,html_body,sender,files=[],replyto=None):
     #search for avatar 
     bs = bs4.BeautifulSoup(sender,features="lxml")
     for img in bs.findAll('img'):
-        if not 'avatars' in server:
-            server['avatars'] = []
         found = False
         for servera in servers:
+            if not 'avatars' in servera:
+                servera['avatars'] = []
             for avatar in servera['avatars']:
                 if avatar['src'] == img['src']:
                     found = True
@@ -209,9 +224,9 @@ async def startup(room):
     loop = asyncio.get_running_loop()
     try:
         with open('data.json', 'r') as f:
-            servers = json.load(f)
-            for server in servers:
-                server = DictClass(server)
+            rservers = json.load(f)
+            for server in rservers:
+                servers.append(Server(server))
     except: pass
     for server in servers:
         if server['room'] == room:
