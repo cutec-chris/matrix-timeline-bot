@@ -213,7 +213,7 @@ async def check_server(server):
                         LastId = fetched['etag']
                     server['LastId'] = LastId
                     await save_servers()
-                    asyncio.sleep(60)
+                    await asyncio.sleep(60)
         except BaseException as e:
             if str(e) != LastError:
                 LastError = str(e)
