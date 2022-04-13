@@ -1,20 +1,28 @@
 from init import *
-import functools,re,urllib.request,os,mimetypes,aiofiles,urllib.parse,os.path,bs4
+import functools,re,urllib.request,os,mimetypes,aiofiles,urllib.parse,os.path,bs4,feedparser
 from types import MappingProxyType
 servers = []
 loop = None
 lastsend = None
+from collections.abc import MutableMapping 
+class DictClass(MutableMapping):
+    __slots__ = '_mydict'
+    def __init__(self):
+        self._mydict = {}
 async def save_servers():
     global servers
+    sservers = []
+    for server in servers:
+        sservers.append(server | {})
     with open('data.json', 'w') as f:
-        json.dump(servers,f, skipkeys=True)
+        json.dump(sservers,f, skipkeys=True)
 @bot.listener.on_message_event
 async def tell(room, message):
     global servers,lastsend
     match = botlib.MessageMatch(room, message, bot, prefix)
     if match.is_not_from_this_bot() and match.prefix()\
     and match.command("follow"):
-        server = MappingProxyType({
+        server = DictClass({
             'room': room.room_id,
             'feed': match.args()[1],
             'username': None,
@@ -45,6 +53,9 @@ def extract_id(post):
             res = int(res)
         except:
             res = None
+    if 'alt="feedid@' in str(post):
+        res = post[post.find('alt="tootid@')+12:]
+        res = res[:res.find('"')]
     return res
 @bot.listener.on_reaction_event
 async def react(room, message, key):
@@ -159,8 +170,34 @@ async def check_server(server):
                                 files.append(media['url'])
                             await post_html_entry(server,toot['content'],sender,files,replyto=replyto)
                             server['LastId'] = LastId
-                            #await save_servers()
+                            await save_servers()
                         await asyncio.sleep(60)
+            else: #rss or atom feeds
+                LastId = None
+                if 'LastId' in server:
+                    LastId = server['LastId']
+                    events = []
+                while True:
+                    events = await get_room_events(bot.api.async_client,server['room'])
+                    fetched = feedparser.parse(server['feed'], agent="matrix-timeline-bot", etag=LastId)
+                    for entry in reversed(fetched.entries):
+                        dt = entry.updated_parsed
+                        sender = '<img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" alt="feedid@%s" style="display: none">🌐</a>' % (fetched['feed']['image']['href'],fetched['feed']['link'],fetched['feed']['title'],'',entry['link'],entry['link'])
+                        found = False
+                        for event in events:
+                            if hasattr(event,'formatted_body'):
+                                if str(extract_id(event.formatted_body)) == str(entry['link']):
+                                    found = True
+                        if not found:
+                            if entry.get('content'):
+                                content = entry.content[0]['value']
+                            elif entry.get('summary_detail'):
+                                content = entry.summary_detail['value']
+                            await post_html_entry(server,content,sender,[])
+                    LastId = fetched['etag']
+                    server['LastId'] = LastId
+                    await save_servers()
+                    asyncio.sleep(60)
         except BaseException as e:
             if str(e) != LastError:
                 LastError = str(e)
@@ -174,7 +211,7 @@ async def startup(room):
         with open('data.json', 'r') as f:
             servers = json.load(f)
             for server in servers:
-                server = MappingProxyType(server)
+                server = DictClass(server)
     except: pass
     for server in servers:
         if server['room'] == room:
