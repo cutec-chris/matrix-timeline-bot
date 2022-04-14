@@ -1,14 +1,11 @@
+from lib2to3.pytree import Base
+import logging
 from init import *
 import functools,re,urllib.request,os,mimetypes,aiofiles,urllib.parse,os.path,bs4,feedparser
 from types import MappingProxyType
 servers = []
 loop = None
 lastsend = None
-from collections.abc import MutableMapping 
-class DictClass(MutableMapping):
-    __slots__ = '_mydict'
-    def __init__(self):
-        self._mydict = {}
 async def save_servers():
     global servers
     sservers = []
@@ -22,7 +19,7 @@ async def tell(room, message):
     match = botlib.MessageMatch(room, message, bot, prefix)
     if match.is_not_from_this_bot() and match.prefix()\
     and match.command("follow"):
-        server = DictClass({
+        server = MappingProxyType({
             'room': room.room_id,
             'feed': match.args()[1],
             'username': None,
@@ -216,8 +213,9 @@ async def startup(room):
         with open('data.json', 'r') as f:
             servers = json.load(f)
             for server in servers:
-                server = DictClass(server)
-    except: pass
+                server = MappingProxyType(server)
+    except BaseException as e: 
+        logging.error(str(e))
     for server in servers:
         if server['room'] == room:
             loop.create_task(check_server(server))
