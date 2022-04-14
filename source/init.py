@@ -19,9 +19,9 @@ async def fetch_room_events(
     limit
 ) -> list:
     events = []
-    while True:
+    while len(events)<limit:
         response = await client.room_messages(
-            room.room_id, start_token, limit=limit, direction=direction
+            room.room_id, start_token, limit=10, direction=direction
         )
         if len(response.chunk) == 0:
             break
