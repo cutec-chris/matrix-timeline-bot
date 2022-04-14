@@ -157,7 +157,7 @@ async def check_server(server):
                                 sender += ' RT from <img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" alt="tootid@%s" style="display: none">toot</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['url'],toot['id'])
                             replyto = None
                             if toot['in_reply_to_id']:
-                                events = await get_room_events(bot.api.async_client,server['room'])
+                                events = await get_room_events(bot.api.async_client,server['room'],100)
                                 for event in events:
                                     if hasattr(event,'formatted_body'):
                                         if str(extract_id(event.formatted_body)) == str(toot['in_reply_to_id']):
@@ -205,17 +205,17 @@ async def check_server(server):
                 LastError = str(e)
                 await bot.api.send_text_message(server['room'],str(e))
         await asyncio.sleep(5)
+try:
+    with open('data.json', 'r') as f:
+        servers = json.load(f)
+        for server in servers:
+            server = MappingProxyType(server)
+except BaseException as e: 
+    logging.error(str(e))
 @bot.listener.on_startup
 async def startup(room):
     global loop,servers
     loop = asyncio.get_running_loop()
-    try:
-        with open('data.json', 'r') as f:
-            servers = json.load(f)
-            for server in servers:
-                server = MappingProxyType(server)
-    except BaseException as e: 
-        logging.error(str(e))
     for server in servers:
         if server['room'] == room:
             loop.create_task(check_server(server))
