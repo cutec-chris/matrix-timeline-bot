@@ -5,30 +5,15 @@ servers = []
 loop = None
 lastsend = None
 from collections.abc import MutableMapping 
-class Server(object):
-    def __init__(self,room,**kwargs) -> None:
-        if isinstance(room, dict):
-            self.__dict__.update(room)
-        else:
-            self.room = room
-            self.__dict__.update(kwargs)
-    def __getitem__(self, key):
-        return self.__dict__[key]
-    def __setitem__(self, key, value):
-        self.__dict__[key] = value
-    def __delitem__(self, key):
-        del self.__dict__[key]
-    def __contains__(self, key):
-        return key in self.__dict__
-    def __len__(self):
-        return len(self.__dict__)
-    def __repr__(self):
-        return repr(self.__dict__)
+class DictClass(MutableMapping):
+    __slots__ = '_mydict'
+    def __init__(self):
+        self._mydict = {}
 async def save_servers():
     global servers
     sservers = []
     for server in servers:
-        sservers.append(server.__dict__)
+        sservers.append(server | {})
     with open('data.json', 'w') as f:
         json.dump(sservers,f, skipkeys=True)
 @bot.listener.on_message_event
@@ -37,7 +22,7 @@ async def tell(room, message):
     match = botlib.MessageMatch(room, message, bot, prefix)
     if match.is_not_from_this_bot() and match.prefix()\
     and match.command("follow"):
-        server = Server({
+        server = DictClass({
             'room': room.room_id,
             'feed': match.args()[1],
             'username': None,
@@ -118,7 +103,7 @@ async def post_html_entry(server,html_body,sender,files=[],replyto=None):
         async with aiofiles.open(file, 'rb') as tmpf:
             resp, maybe_keys = await bot.api.async_client.upload(tmpf,content_type=mimetype[0])
         if url in html_body:
-            html_body.replace(url,resp.content_uri)
+            html_body = html_body.replace(url,resp.content_uri)
         else:
             html_body += '<img src=\"%s\" alt="%s"></img>' % (resp.content_uri,os.path.basename((urllib.parse.urlparse(url).path)))
         #info = { 'h': img.height, 'w': img.width, 'mimetype': mimetype}
@@ -157,7 +142,7 @@ async def check_server(server):
                 except BaseException as e:
                     Mastodon = None #no mastodon instance ?
                 if Mastodon:
-                    events = await get_room_events(bot.api.async_client,server['room'])
+                    events = await get_room_events(bot.api.async_client,server['room'],500)
                     for event in events:
                         if hasattr(event,'formatted_body'):
                             nLastId = extract_id(event.formatted_body)
@@ -191,9 +176,8 @@ async def check_server(server):
                 LastId = None
                 if 'LastId' in server:
                     LastId = server['LastId']
-                    events = []
-                while True:
                     events = await get_room_events(bot.api.async_client,server['room'],100)
+                while True:
                     fetched = feedparser.parse(server['feed'], agent="matrix-timeline-bot", etag=LastId)
                     for entry in reversed(fetched.entries):
                         dt = entry.updated_parsed
@@ -208,12 +192,17 @@ async def check_server(server):
                                 content = entry.content[0]['value']
                             elif entry.get('summary_detail'):
                                 content = entry.summary_detail['value']
-                            await post_html_entry(server,content,sender,[])
+                            bs = bs4.BeautifulSoup(content,features="lxml")
+                            files = []
+                            for img in bs.findAll('img'):
+                                files.append(img['src'])
+                                break
+                            await post_html_entry(server,content,sender,files)
                     if 'etag' in fetched:
                         LastId = fetched['etag']
                     server['LastId'] = LastId
                     await save_servers()
-                    await asyncio.sleep(360)
+                    await asyncio.sleep(60*5)
         except BaseException as e:
             if str(e) != LastError:
                 LastError = str(e)
@@ -225,9 +214,9 @@ async def startup(room):
     loop = asyncio.get_running_loop()
     try:
         with open('data.json', 'r') as f:
-            rservers = json.load(f)
-            for server in rservers:
-                servers.append(Server(server))
+            servers = json.load(f)
+            for server in servers:
+                server = DictClass(server)
     except: pass
     for server in servers:
         if server['room'] == room:
