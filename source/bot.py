@@ -54,7 +54,7 @@ def extract_id(post):
         except:
             res = None
     if 'alt="feedid@' in str(post):
-        res = post[post.find('alt="tootid@')+12:]
+        res = post[post.find('alt="feedid@')+12:]
         res = res[:res.find('"')]
     return res
 @bot.listener.on_reaction_event
@@ -76,10 +76,10 @@ async def post_html_entry(server,html_body,sender,files=[],replyto=None):
     #search for avatar 
     bs = bs4.BeautifulSoup(sender,features="lxml")
     for img in bs.findAll('img'):
-        if not 'avatars' in server:
-            server['avatars'] = []
         found = False
         for servera in servers:
+            if not 'avatars' in server:
+                server['avatars'] = []
             for avatar in servera['avatars']:
                 if avatar['src'] == img['src']:
                     found = True
@@ -178,7 +178,7 @@ async def check_server(server):
                     LastId = server['LastId']
                     events = []
                 while True:
-                    events = await get_room_events(bot.api.async_client,server['room'])
+                    events = await get_room_events(bot.api.async_client,server['room'],100)
                     fetched = feedparser.parse(server['feed'], agent="matrix-timeline-bot", etag=LastId)
                     for entry in reversed(fetched.entries):
                         dt = entry.updated_parsed
@@ -194,10 +194,11 @@ async def check_server(server):
                             elif entry.get('summary_detail'):
                                 content = entry.summary_detail['value']
                             await post_html_entry(server,content,sender,[])
-                    LastId = fetched['etag']
+                    if 'etag' in fetched:
+                        LastId = fetched['etag']
                     server['LastId'] = LastId
                     await save_servers()
-                    asyncio.sleep(60)
+                    await asyncio.sleep(360)
         except BaseException as e:
             if str(e) != LastError:
                 LastError = str(e)
