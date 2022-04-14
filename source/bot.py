@@ -10,7 +10,7 @@ async def save_servers():
     global servers
     sservers = []
     for server in servers:
-        sservers.append(server | {})
+        sservers.append(server)
     with open('data.json', 'w') as f:
         json.dump(sservers,f, skipkeys=True)
 @bot.listener.on_message_event
