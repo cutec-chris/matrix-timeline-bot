@@ -12,8 +12,7 @@ async def save_servers():
     for server in servers:
         nserver = {}
         nserver.update(server)
-        if '_client' in nserver:
-            nserver['_client'] = None
+        nserver['_client'] = None
         sservers.append(nserver)
     with open('data.json', 'w') as f:
         json.dump(sservers,f, skipkeys=True)
