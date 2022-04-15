@@ -10,7 +10,11 @@ async def save_servers():
     global servers
     sservers = []
     for server in servers:
-        sservers.append(server)
+        nserver = {}
+        nserver.update(server)
+        if '_client' in nserver:
+            nserver['_client'] = None
+        sservers.append(nserver)
     with open('data.json', 'w') as f:
         json.dump(sservers,f, skipkeys=True)
 @bot.listener.on_message_event
