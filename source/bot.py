@@ -2,7 +2,6 @@ from lib2to3.pytree import Base
 import logging
 from init import *
 import functools,re,urllib.request,os,mimetypes,aiofiles,urllib.parse,os.path,bs4,feedparser
-from types import MappingProxyType
 servers = []
 loop = None
 lastsend = None
@@ -22,12 +21,12 @@ async def tell(room, message):
     match = botlib.MessageMatch(room, message, bot, prefix)
     if match.is_not_from_this_bot() and match.prefix()\
     and match.command("follow"):
-        server = MappingProxyType({
+        server = {
             'room': room.room_id,
             'feed': match.args()[1],
             'username': None,
             'password': None
-        })
+        }
         if len(match.args())>3:
             server['password'] = match.args()[3]
         if len(match.args())>2:
@@ -37,9 +36,9 @@ async def tell(room, message):
         if len(match.args())>5:
             server['clientid'] = match.args()[5]
         servers.append(server)
-        loop.create_task(check_server(server))
         await save_servers()
         await bot.api.send_text_message(room.room_id, 'ok')
+        loop.create_task(check_server(server))
     elif match.is_not_from_this_bot():
         for server in servers:
             if server['room'] == room.room_id:
@@ -213,8 +212,6 @@ async def check_server(server):
 try:
     with open('data.json', 'r') as f:
         servers = json.load(f)
-        for server in servers:
-            server = MappingProxyType(server)
 except BaseException as e: 
     logging.error(str(e))
 @bot.listener.on_startup
