@@ -175,10 +175,8 @@ async def check_server(server):
                 LastId = None
                 if 'LastId' in server:
                     LastId = server['LastId']
-                    events = await get_room_events(bot.api.async_client,server['room'],100)
-                else:
-                    events = []
                 while True:
+                    events = await get_room_events(bot.api.async_client,server['room'],500)
                     fetched = feedparser.parse(server['feed'], agent="matrix-timeline-bot", etag=LastId)
                     for entry in reversed(fetched.entries):
                         dt = entry.updated_parsed
