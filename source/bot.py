@@ -30,6 +30,19 @@ async def tell(room, message):
         await save_servers()
         await bot.api.send_text_message(room.room_id, 'ok')
         loop.create_task(check_server(server))
+    elif match.is_not_from_this_bot() and match.prefix()\
+    and match.command("list"):
+        for server in servers:
+            if server.room == room.room_id:
+                await bot.api.send_text_message(room.roon_id, server.feed+' '+server.username)
+    elif match.is_not_from_this_bot() and match.prefix()\
+    and match.command("unfollow"):
+        for server in servers:
+            if server.room == room.room_id:
+                if server.feed == match.args()[1]:
+                    servers.remove(server)
+                    await bot.api.send_text_message(room.room_id, 'ok')
+                    break
     elif match.is_not_from_this_bot():
         for server in servers:
             if server.room == room.room_id:
@@ -227,6 +240,10 @@ async def bot_help(room, message):
                 description: follow feed or timeline in this room
                 mastodon needs all fields filled
                 rss/atom feeds only the url (and username and passwort when auth is needed)
+            list:
+                list all feeds in this room
+            unfollow:
+                command: unfollow feed_url
             help:
                 command: help, ?, h
                 description: display help command
