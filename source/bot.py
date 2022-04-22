@@ -32,9 +32,11 @@ async def tell(room, message):
         loop.create_task(check_server(server))
     elif match.is_not_from_this_bot() and match.prefix()\
     and match.command("list"):
+        txt = '#list:\n'
         for server in servers:
             if server.room == room.room_id:
-                await bot.api.send_text_message(room.roon_id, server.feed+' '+server.username)
+                txt += server.feed+' '+server.username
+        await bot.api.send_markdown_message(room.room_id, txt)
     elif match.is_not_from_this_bot() and match.prefix()\
     and match.command("unfollow"):
         for server in servers:
@@ -137,6 +139,11 @@ async def check_server(server):
     else:
         LastId = None
     while True:
+        try:
+            users = bot.api.async_client.rooms[server.room].users
+            if len(users)==1:
+                return False
+        except: pass
         try:
             if hasattr(server,'apikey'): #at time we only support mastodon with api key
                 try:
