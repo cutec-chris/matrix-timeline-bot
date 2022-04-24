@@ -211,6 +211,8 @@ async def check_server(server):
                             for img in bs.findAll('img'):
                                 files.append(img['src'])
                                 break
+                            if not entry.title in content:
+                                content = ('<strong><a href=\"%s\">%s</a></strong><br><br>' % (entry.link,entry.title)+content)
                             await post_html_entry(server,content,sender,files)
                     if 'etag' in fetched:
                         LastId = fetched['etag']
