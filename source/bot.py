@@ -194,6 +194,8 @@ async def check_server(server):
                     fetched = feedparser.parse(server.feed, agent="matrix-timeline-bot", etag=LastId)
                     for entry in reversed(fetched.entries):
                         dt = entry.updated_parsed
+                        if not 'image' in fetched['feed']:
+                            fetched['feed']['image'] = {'href':''}
                         sender = '<img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" alt="feedid@%s" style="display: none">🌐</a>' % (fetched['feed']['image']['href'],fetched['feed']['link'],fetched['feed']['title'],'',entry['link'],entry['link'])
                         found = False
                         for event in events:
