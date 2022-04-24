@@ -32,10 +32,10 @@ async def tell(room, message):
         loop.create_task(check_server(server))
     elif match.is_not_from_this_bot() and match.prefix()\
     and match.command("list"):
-        txt = '#list:\n'
+        txt = '###list:\n'
         for server in servers:
             if server.room == room.room_id:
-                txt += server.feed+' '+server.username
+                txt += server.feed+' '+str(server.username).replace('None','')
         await bot.api.send_markdown_message(room.room_id, txt)
     elif match.is_not_from_this_bot() and match.prefix()\
     and match.command("unfollow"):
@@ -207,6 +207,7 @@ async def check_server(server):
                                 content = entry.summary_detail['value']
                             bs = bs4.BeautifulSoup(content,features="lxml")
                             files = []
+                            #add first image to post
                             for img in bs.findAll('img'):
                                 files.append(img['src'])
                                 break
