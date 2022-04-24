@@ -35,7 +35,7 @@ async def tell(room, message):
         txt = '###list:\n'
         for server in servers:
             if server.room == room.room_id:
-                txt += server.feed+' '+str(server.username).replace('None','')
+                txt += '* '+server.feed+' '+str(server.username).replace('None','')+'\n'
         await bot.api.send_markdown_message(room.room_id, txt)
     elif match.is_not_from_this_bot() and match.prefix()\
     and match.command("unfollow"):
