@@ -196,11 +196,12 @@ async def check_server(server):
                         dt = entry.updated_parsed
                         if not 'image' in fetched['feed']:
                             fetched['feed']['image'] = {'href':''}
-                        sender = '<img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" alt="feedid@%s" style="display: none">🌐</a>' % (fetched['feed']['image']['href'],fetched['feed']['link'],fetched['feed']['title'],'',entry['link'],entry['link'])
+                        sender = '<img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" alt="feedid@%s" style="display: none">🌐</a>' % (fetched['feed']['image']['href'],fetched['feed']['link'],fetched['feed']['title'],'',entry['link'],entry['id'])
                         found = False
                         for event in events:
                             if hasattr(event,'formatted_body'):
-                                if str(extract_id(event.formatted_body)) == str(entry['link']):
+                                if str(extract_id(event.formatted_body)) == str(entry['link'])\
+                                or str(extract_id(event.formatted_body)) == str(entry['id']):
                                     found = True
                         if not found:
                             if entry.get('content'):
