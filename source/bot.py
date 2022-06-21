@@ -138,6 +138,10 @@ async def check_server(server):
         LastId = server.LastId
     else:
         LastId = None
+    if hasattr(server,'ConvLastId'):
+        ConvLastId = server.ConvLastId
+    else:
+        ConvLastId = None
     while True:
         try:
             users = bot.api.async_client.rooms[server.room].users
@@ -163,6 +167,7 @@ async def check_server(server):
                                 LastId = nLastId
                                 break
                     server._client = Mastodon
+                    replyto = None
                     while True:
                         tl = Mastodon.timeline(min_id=LastId)
                         for toot in reversed(tl):
@@ -184,6 +189,43 @@ async def check_server(server):
                             await post_html_entry(server,toot['content'],sender,files,replyto=replyto)
                             server.LastId = LastId
                             await save_servers()
+                        if not '@' in server.feed:
+                            tl = Mastodon.notifications(min_id=ConvLastId)
+                            for toot in reversed(tl):
+                                if toot['type'] == 'mention':
+                                    sender = '<img src=\"%s\" width="32" height="32"></img><a href=\"%s\">%s</a><font size="-1"> %s</font>&nbsp;<a href=\"%s\" alt="tootid@%s" style="display: none">🌐</a>' % (toot['account']['avatar'],toot['account']['url'],toot['account']['display_name'],toot['account']['acct'],toot['status']['url'],toot['status']['id'])
+                                    ConvLastId = toot['id']
+                                    replyto = None
+                                    if toot['status']['in_reply_to_id']:
+                                        events = await get_room_events(bot.api.async_client,server.room,100)
+                                        for event in events:
+                                            if hasattr(event,'formatted_body'):
+                                                if str(extract_id(event.formatted_body)) == str(toot['status']['in_reply_to_id']):
+                                                    replyto = event
+                                    files = []
+                                    for media in toot['status']['media_attachments']:
+                                        files.append(media['url'])
+                                    #await post_html_entry(server,toot['status']['content'],sender,files,replyto=replyto)
+                                    #server.ConvLastId = ConvLastId
+                                elif toot['type'] == 'favourite':
+                                    if toot['status']['in_reply_to_id']:
+                                        events = await get_room_events(bot.api.async_client,server.room,100)
+                                        for event in events:
+                                            if hasattr(event,'formatted_body'):
+                                                if str(extract_id(event.formatted_body)) == str(toot['status']['in_reply_to_id']):
+                                                    replyto = event
+                                    if replyto:
+                                        mcontent={}
+                                        mcontent['m.relates_to'] = {
+                                            "m.annotation": {
+                                                "event_id": replyto.event_id,
+                                                "key": '⭐️'
+                                            }
+                                        }
+                                        await bot.api.async_client.room_send(room_id=server.room,
+                                                                            message_type="m.reaction",
+                                                                            content=mcontent)
+                                    server.ConvLastId = ConvLastId
                         await asyncio.sleep(60)
             else: #rss or atom feeds
                 LastId = None
@@ -223,8 +265,11 @@ async def check_server(server):
                     await save_servers()
                     await asyncio.sleep(60*5)
         except BaseException as e:
-            if str(e) != LastError:
-                LastError = str(e)
+            err = str(e)
+            if 'HTTPSConnectionPool' in err:
+                err = 'Connection lost'
+            if err != LastError:
+                LastError = err
                 await bot.api.send_text_message(server.room,str(e))
         await asyncio.sleep(5)
 try:
