@@ -159,7 +159,10 @@ async def check_server(server):
                 except BaseException as e:
                     Mastodon = None #no mastodon instance ?
                 if Mastodon:
-                    events = await get_room_events(bot.api.async_client,server.room,500)
+                    try:
+                        events = await get_room_events(bot.api.async_client,server.room,500)
+                    except BaseException as e:
+                        events = []
                     for event in events:
                         if hasattr(event,'formatted_body'):
                             nLastId = extract_id(event.formatted_body)
@@ -232,7 +235,10 @@ async def check_server(server):
                 if hasattr(server,'LastId'):
                     LastId = server.LastId
                 while True:
-                    events = await get_room_events(bot.api.async_client,server.room,500)
+                    try:
+                        events = await get_room_events(bot.api.async_client,server.room,500)
+                    except BaseException as e:
+                        events = []
                     fetched = feedparser.parse(server.feed, agent="matrix-timeline-bot", etag=LastId)
                     for entry in reversed(fetched.entries):
                         dt = entry.updated_parsed
