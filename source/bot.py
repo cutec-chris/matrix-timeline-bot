@@ -277,6 +277,7 @@ async def check_server(server):
             if err != LastError:
                 LastError = err
                 await bot.api.send_text_message(server.room,str(e))
+                await asyncio.sleep(5*60)
         await asyncio.sleep(5)
 try:
     with open('data.json', 'r') as f:
