@@ -3,3 +3,4 @@ server:
   user: timeline
   password: botpassword
   prefix: "timeline:"
+  device_id: "matrix"
