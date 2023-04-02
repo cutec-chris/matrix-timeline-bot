@@ -278,14 +278,14 @@ async def check_server(server):
                 LastError = err
                 await bot.api.send_text_message(server.room,str(e))
                 await asyncio.sleep(5*60)
-        await asyncio.sleep(5)
+        await asyncio.sleep(3*60)
 try:
     with open('data.json', 'r') as f:
         nservers = json.load(f)
         for server in nservers:
             servers.append(Server(server))
 except BaseException as e: 
-    logging.error('Failed to read config.yml:'+str(e))
+    logging.error('Failed to read data.json:'+str(e))
     exit(1)
 @bot.listener.on_startup
 async def startup(room):
