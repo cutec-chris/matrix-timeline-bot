@@ -1,7 +1,7 @@
 simplematrixbotlib
-pyyaml
+#pyyaml
 Mastodon.py
-bs4
-Pillow
-lxml
-feedparser
+#bs4
+#Pillow
+#lxml
+#feedparser
