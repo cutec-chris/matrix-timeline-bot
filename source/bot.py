@@ -105,15 +105,18 @@ async def post_html_entry(server,html_body,sender,files=[],replyto=None):
     sender = str(bs)
     furls = []
     for url in files:
-        file = '/tmp/'+os.path.basename((urllib.parse.urlparse(url).path))
-        urllib.request.urlretrieve(url, file)
-        mimetype = mimetypes.guess_type(file)
-        async with aiofiles.open(file, 'rb') as tmpf:
-            resp, maybe_keys = await bot.api.async_client.upload(tmpf,content_type=mimetype[0])
-        if url in html_body:
-            html_body = html_body.replace(url,resp.content_uri)
-        else:
-            html_body += '<img src=\"%s\" alt="%s"></img>' % (resp.content_uri,os.path.basename((urllib.parse.urlparse(url).path)))
+        try:
+            file = '/tmp/'+os.path.basename((urllib.parse.urlparse(url).path))
+            urllib.request.urlretrieve(url, file)
+            mimetype = mimetypes.guess_type(file)
+            async with aiofiles.open(file, 'rb') as tmpf:
+                resp, maybe_keys = await bot.api.async_client.upload(tmpf,content_type=mimetype[0])
+            if url in html_body:
+                html_body = html_body.replace(url,resp.content_uri)
+            else:
+                html_body += '<img src=\"%s\" alt="%s"></img>' % (resp.content_uri,os.path.basename((urllib.parse.urlparse(url).path)))
+        except BaseException as e:
+            logging.warning('failed to upload file '+str(e))
         #info = { 'h': img.height, 'w': img.width, 'mimetype': mimetype}
         #return resp.get('content_uri'), info
     mcontent={
